@@ -1,27 +1,102 @@
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-/// Find the project root by traversing up the directory tree looking for `Cargo.toml`.
-///
-/// # Returns
-///
-/// * `Ok(PathBuf)` containing the path to the directory where `Cargo.toml` is found.
-/// * `Err` if the current working directory cannot be determined, or if no `Cargo.toml`
-///   is found in the current directory or any of its ancestors.
-pub fn find_project_root() -> Result<PathBuf> {
-    let current_dir = std::env::current_dir().context("Failed to get current directory")?;
-    let mut current = current_dir
-        .canonicalize()
-        .context("Failed to canonicalize current directory")?;
+/// 从起始路径向上搜索 .c2rust 目录以查找项目根目录
+fn find_project_root_from(start_path: &Path) -> Result<PathBuf> {
+    let mut current = start_path.to_path_buf();
 
     loop {
-        if current.join("Cargo.toml").exists() {
-            return Ok(current);
+        let c2rust_dir = current.join(".c2rust");
+
+        // 使用 metadata 正确处理 IO 错误
+        match std::fs::metadata(&c2rust_dir) {
+            Ok(metadata) if metadata.is_dir() => {
+                return Ok(current);
+            }
+            Ok(_) => {
+                // .c2rust 存在但不是目录，继续搜索
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // .c2rust 不存在，继续搜索
+            }
+            Err(e) => {
+                // 其他 IO 错误（权限等）
+                return Err(e).with_context(|| {
+                    format!(
+                        "Failed to access .c2rust directory at {}",
+                        c2rust_dir.display()
+                    )
+                });
+            }
         }
 
         match current.parent() {
             Some(parent) => current = parent.to_path_buf(),
-            None => anyhow::bail!("Could not find project root (no Cargo.toml found in directory tree)"),
+            None => anyhow::bail!("Could not find .c2rust directory in any parent directory"),
         }
+    }
+}
+
+/// 从当前目录向上搜索 .c2rust 目录以查找项目根目录
+pub fn find_project_root() -> Result<PathBuf> {
+    let current = std::env::current_dir().context("Failed to get current directory")?;
+    find_project_root_from(&current)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_find_project_root_from_nested_dir() {
+        // 创建临时目录结构：
+        // temp/
+        //   .c2rust/
+        //   subdir1/
+        //     subdir2/
+        let temp_dir = tempdir().unwrap();
+        let c2rust_dir = temp_dir.path().join(".c2rust");
+        fs::create_dir(&c2rust_dir).unwrap();
+
+        let subdir1 = temp_dir.path().join("subdir1");
+        let subdir2 = subdir1.join("subdir2");
+        fs::create_dir_all(&subdir2).unwrap();
+
+        // 应该从嵌套子目录找到 .c2rust 目录
+        let result = find_project_root_from(&subdir2);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), temp_dir.path());
+    }
+
+    #[test]
+    fn test_find_project_root_not_found() {
+        // 创建没有 .c2rust 的临时目录
+        let temp_dir = tempdir().unwrap();
+        let subdir = temp_dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+
+        // 应该无法找到 .c2rust 目录
+        let result = find_project_root_from(&subdir);
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Could not find .c2rust"));
+    }
+
+    #[test]
+    fn test_find_project_root_from_root_dir() {
+        // 创建根目录带有 .c2rust 的临时目录
+        let temp_dir = tempdir().unwrap();
+        let c2rust_dir = temp_dir.path().join(".c2rust");
+        fs::create_dir(&c2rust_dir).unwrap();
+
+        // 应该在起始目录中找到 .c2rust
+        let result = find_project_root_from(temp_dir.path());
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), temp_dir.path());
     }
 }
