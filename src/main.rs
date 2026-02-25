@@ -13,7 +13,7 @@ enum Commands {
     /// Merge translated files for a feature
     Merge {
         /// The feature name to merge
-        #[arg(long)]
+        #[arg(long, default_value = "default")]
         feature: String,
     },
 }
