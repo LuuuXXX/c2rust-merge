@@ -9,7 +9,10 @@ use std::path::PathBuf;
 /// * `Err` if the current working directory cannot be determined, or if no `Cargo.toml`
 ///   is found in the current directory or any of its ancestors.
 pub fn find_project_root() -> Result<PathBuf> {
-    let mut current = std::env::current_dir().context("Failed to get current directory")?;
+    let current_dir = std::env::current_dir().context("Failed to get current directory")?;
+    let mut current = current_dir
+        .canonicalize()
+        .context("Failed to canonicalize current directory")?;
 
     loop {
         if current.join("Cargo.toml").exists() {

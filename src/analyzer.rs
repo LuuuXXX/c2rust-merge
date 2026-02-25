@@ -31,12 +31,16 @@ use crate::util;
 /// This function requires the `code_analyse` binary to be installed and
 /// available on the system `PATH`. If it is missing, an error is returned.
 pub fn merge_code_analysis(feature: &str) -> Result<()> {
+    if feature.is_empty() {
+        anyhow::bail!("Feature name cannot be empty");
+    }
+
     if !feature
         .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         anyhow::bail!(
-            "Invalid feature name '{}': only alphanumeric characters, hyphens, and underscores are allowed",
+            "Invalid feature name '{}': only ASCII alphanumeric characters, hyphens, and underscores are allowed",
             feature
         );
     }
