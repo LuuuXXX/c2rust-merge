@@ -16,7 +16,7 @@ pub fn merge(feature: &str) -> Result<()> {
     println!("│");
     println!("│ {}", "Merging translated files...".bright_blue().bold());
     analyzer::merge_code_analysis(feature)?;
-    println!("│ {}", "✓ Files merged successfully".bright_green());
+    println!("│ {}", "✓ Merge step completed (see details above)".bright_green());
 
     Ok(())
 }

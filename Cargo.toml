@@ -2,12 +2,15 @@
 name = "c2rust-merge"
 version = "0.1.0"
 edition = "2021"
+description = "A tool for merging C2Rust translation outputs."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/LuuuXXX/c2rust-merge"
 
 [[bin]]
 name = "c2rust-merge"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0"
-clap = { version = "4.0", features = ["derive"] }
-colored = "2.0"
+anyhow = "1.0.93"
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
