@@ -37,6 +37,28 @@ fn find_project_root_from(start_path: &Path) -> Result<PathBuf> {
     }
 }
 
+/// Validate that a feature name contains only safe characters.
+///
+/// Valid feature names consist of ASCII alphanumeric characters, hyphens (`-`),
+/// and underscores (`_`).  An empty name is also rejected.
+pub fn validate_feature_name(feature: &str) -> Result<()> {
+    if feature.is_empty() {
+        anyhow::bail!("Feature name cannot be empty");
+    }
+
+    if !feature
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        anyhow::bail!(
+            "Invalid feature name '{}': only ASCII alphanumeric characters, hyphens, and underscores are allowed",
+            feature
+        );
+    }
+
+    Ok(())
+}
+
 /// 从当前目录向上搜索 .c2rust 目录以查找项目根目录
 pub fn find_project_root() -> Result<PathBuf> {
     let current = std::env::current_dir().context("Failed to get current directory")?;
